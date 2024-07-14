@@ -23,6 +23,47 @@ type ConversionForm struct {
 	Amount       uint64 `json:"amount"`
 }
 
+type FinalConversionForm struct {
+	UserID int `json:"user_id"`
+}
+
+func HandleFinalConversion(w http.ResponseWriter, r *http.Request) {
+	db, err := db.NewConn()
+	if err != nil {
+		utils.EncodeResponse(w, r, http.StatusInternalServerError, "Internal Error")
+		return
+	}
+	reqData, err := utils.DecodeJson[FinalConversionForm](r)
+
+	if err != nil {
+		utils.EncodeResponse(w, r, http.StatusBadRequest, "Final Conversion form is not valid!")
+		return
+	}
+
+	vars := mux.Vars(r)
+	conversionID, _ := strconv.Atoi(vars["id"])
+
+	var conversion model.Conversion
+
+	if db.Where("user_id=?", reqData.UserID).First(&conversion, conversionID).RowsAffected == 0 {
+		utils.EncodeResponse(w, r, http.StatusNotFound, "Conversion not found!")
+		return
+	}
+
+	if conversion.Validate() != nil {
+		utils.EncodeResponse(w, r, http.StatusBadRequest, "Conversion has expired!")
+		db.Delete(&conversion)
+		return
+	}
+
+	if err := conversion.Convert(db); err != nil {
+		utils.EncodeResponse(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.EncodeResponse(w, r, http.StatusOK, "ok")
+}
+
 func HandleConversion(w http.ResponseWriter, r *http.Request) {
 	db, err := db.NewConn()
 	if err != nil {
