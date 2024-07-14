@@ -65,19 +65,51 @@ func (conversion *Conversion) CheckBalance(db *gorm.DB) error {
 	return nil
 }
 
+func (conversion *Conversion) Convert(db *gorm.DB) error {
+	var sourceAccount, destAccount Account
+	db.Where(Account{UserID: conversion.UserID, CoinID: conversion.SourceCoinID}).First(&sourceAccount)
+	db.Where(Account{UserID: conversion.UserID, CoinID: conversion.DestCoinID}).FirstOrCreate(&destAccount)
+
+	sourceAccount.Balance -= conversion.SourceAmount
+	destAccount.Balance += conversion.ExpectedAmount
+
+	if err := db.Save(&sourceAccount).Error; err != nil {
+		return err
+	}
+
+	if err := db.Save(&destAccount).Error; err != nil {
+		return err
+	}
+
+	db.Delete(conversion)
+
+	return nil
+}
+
+func (conversion *Conversion) Validate() error {
+	if time.Since(conversion.UpdatedAt) > time.Minute {
+		return fmt.Errorf("conversion has expired")
+	}
+	return nil
+}
+
 func (conversion *Conversion) LoadAssociates(db *gorm.DB) {
 	db.Find(&conversion.SourceCoin, conversion.SourceCoinID)
 	db.Find(&conversion.DestCoin, conversion.DestCoinID)
 }
 
 func (conversion *Conversion) CalculateExpected() error {
-	price, err := conversion.SourceCoin.RetrievePrice(conversion.DestCoin.Name)
+	sourcePrice, err := conversion.SourceCoin.RetrievePrice("USD")
+	if err != nil {
+		return err
+	}
+	destPrice, err := conversion.DestCoin.RetrievePrice("USD")
 	if err != nil {
 		return err
 	}
 
-	stdBalance := float64(conversion.SourceAmount) / float64(conversion.SourceCoin.UnitFactor)
-	conversion.ExpectedAmount = uint64(price * stdBalance * float64(conversion.DestCoin.UnitFactor))
+	convertFactor := destPrice / sourcePrice
+	conversion.ExpectedAmount = uint64(float64(conversion.SourceAmount) * convertFactor * float64(conversion.DestCoin.UnitFactor/conversion.SourceCoin.UnitFactor))
 	return nil
 }
 
