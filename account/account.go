@@ -22,7 +22,7 @@ func HandleGetAccount(w http.ResponseWriter, r *http.Request) {
 
 	var accounts []model.Account
 
-	result := db.Model(model.Account{UserID: userID}).Preload("Coin").Preload("User").Find(&accounts)
+	result := db.Where("user_id = ?", userID).Preload("Coin").Preload("User").Find(&accounts)
 
 	if result.Error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
