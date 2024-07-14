@@ -2,7 +2,8 @@ package main
 
 import (
 	"log"
-	"server/server"
+
+	"github.com/sinasadeghi83/SwapTask/server"
 )
 
 func main() {
