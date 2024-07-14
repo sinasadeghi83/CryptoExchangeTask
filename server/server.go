@@ -13,6 +13,7 @@ import (
 var API_ROUTES = map[string]http.HandlerFunc{
 	"GET /user/{id:[-]?[0-9]+}":    user.HandleGetUser,
 	"GET /account/{id:[-]?[0-9]+}": account.HandleGetAccount,
+	"POST /convert":                account.HandleConversion,
 }
 
 func addRoutes(router *mux.Router) {
