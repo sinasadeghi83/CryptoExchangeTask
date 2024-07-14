@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/sinasadeghi83/SwapTask/account"
 	"github.com/sinasadeghi83/SwapTask/user"
 )
 
@@ -15,6 +16,7 @@ func addRoutes(router *mux.Router) {
 	})
 
 	router.HandleFunc("/user/{id:[-]?[0-9]+}", user.HandleGetUser).Methods("GET")
+	router.HandleFunc("/account/{id:[-]?[0-9]+}", account.HandleGetAccount).Methods("GET")
 }
 
 func NewHandler() http.Handler {
