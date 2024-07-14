@@ -1,0 +1,1 @@
+I could add some middlewares to make the code much cleaner. But since this is my first structured code in golang, this is all I could implement in 1 day!
