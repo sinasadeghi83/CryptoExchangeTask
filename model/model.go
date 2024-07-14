@@ -2,28 +2,36 @@ package model
 
 import (
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
 
+type BaseModel struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
 type User struct {
-	gorm.Model
-	Name string
+	BaseModel
+	Name string `json:"name"`
 }
 
 type Account struct {
-	gorm.Model
-	CoinID  int `gorm:"uniqueIndex:idx_userid_coinid"`
-	Coin    Coin
-	UserID  int `gorm:"uniqueIndex:idx_userid_coinid"`
-	User    User
-	Balance uint
+	BaseModel
+	CoinID  int  `gorm:"uniqueIndex:idx_userid_coinid" json:"coin_id"`
+	Coin    Coin `json:"coin"`
+	UserID  int  `gorm:"uniqueIndex:idx_userid_coinid" json:"user_id"`
+	User    User `json:"user"`
+	Balance uint `json:"balance"`
 }
 
 type Coin struct {
-	gorm.Model
-	Name string
-	Unit string
+	BaseModel
+	Name string `json:"name"`
+	Unit string `json:"unit"`
 }
 
 func (u User) String() string {
