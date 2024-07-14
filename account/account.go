@@ -1,13 +1,13 @@
 package account
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/sinasadeghi83/SwapTask/db"
 	"github.com/sinasadeghi83/SwapTask/model"
+	"github.com/sinasadeghi83/SwapTask/utils"
 )
 
 func HandleGetAccount(w http.ResponseWriter, r *http.Request) {
@@ -30,10 +30,5 @@ func HandleGetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := ""
-	for _, account := range accounts {
-		response += fmt.Sprintf("%s of %s balance is %d %s", account.User.Name, account.Coin.Name, account.Balance, account.Coin.Unit)
-	}
-
-	w.Write([]byte(response))
+	utils.EncodeResponse(w, r, http.StatusOK, accounts)
 }
