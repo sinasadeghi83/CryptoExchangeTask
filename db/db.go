@@ -50,10 +50,11 @@ func generateFakeUsers() []model.User {
 func generateInitialCoins() []model.Coin {
 	// Using smallest unit of each coin
 	return []model.Coin{
-		{Name: "USDT", Unit: "cent"},
-		{Name: "BTC", Unit: "satoshi"},
-		{Name: "ETH", Unit: "wei"},
-		{Name: "DOGE", Unit: "shibe"},
-		{Name: "XRP", Unit: "drop"},
+		{Name: "USDT", Unit: "cent-tether", UnitFactor: 100},
+		{Name: "BTC", Unit: "satoshi", UnitFactor: 100000},
+		{Name: "ETH", Unit: "wei", UnitFactor: 1000000000000000000},
+		{Name: "DOGE", Unit: "shibe", UnitFactor: 100000},
+		{Name: "XRP", Unit: "drop", UnitFactor: 1000000},
+		{Name: "USD", Unit: "cent", UnitFactor: 100},
 	}
 }
