@@ -19,7 +19,6 @@ func addRoutes(router *mux.Router) {
 
 func NewHandler() http.Handler {
 	router := mux.NewRouter()
-
 	addRoutes(router)
 
 	return router
