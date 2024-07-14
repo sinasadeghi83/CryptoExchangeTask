@@ -22,7 +22,7 @@ func HandleGetAccount(w http.ResponseWriter, r *http.Request) {
 
 	var accounts []model.Account
 
-	result := db.Model(model.Account{UserID: userID}).Joins("Coin").Find(&accounts)
+	result := db.Model(model.Account{UserID: userID}).Preload("Coin").Preload("User").Find(&accounts)
 
 	if result.Error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -32,7 +32,7 @@ func HandleGetAccount(w http.ResponseWriter, r *http.Request) {
 
 	response := ""
 	for _, account := range accounts {
-		response += fmt.Sprintf("%s balance is %d %s", account.Coin.Name, account.Balance, account.Coin.Unit)
+		response += fmt.Sprintf("%s of %s balance is %d %s", account.User.Name, account.Coin.Name, account.Balance, account.Coin.Unit)
 	}
 
 	w.Write([]byte(response))
