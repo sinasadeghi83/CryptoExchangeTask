@@ -24,21 +24,75 @@ type User struct {
 
 type Account struct {
 	BaseModel
-	CoinID  int  `gorm:"uniqueIndex:idx_userid_coinid" json:"coin_id"`
-	Coin    Coin `json:"coin"`
-	UserID  int  `gorm:"uniqueIndex:idx_userid_coinid" json:"user_id"`
-	User    User `json:"user"`
-	Balance uint `json:"balance"`
+	CoinID  int    `gorm:"uniqueIndex:idx_userid_coinid" json:"coin_id"`
+	Coin    Coin   `json:"coin"`
+	UserID  int    `gorm:"uniqueIndex:idx_userid_coinid" json:"user_id"`
+	User    User   `json:"user"`
+	Balance uint64 `json:"balance"`
 }
 
 type Coin struct {
 	BaseModel
-	Name string `json:"name"`
-	Unit string `json:"unit"`
+	Name       string `gorm:"index:idx_coin_name" json:"name"`
+	Unit       string `json:"unit"`
+	UnitFactor uint64 `json:"unit_factor"`
 }
 
-func (account Account) CalculateUSCent() (uint, error) {
-	url := fmt.Sprintf("https://min-api.cryptocompare.com/data/generateAvg?fsym=%s&tsym=USD&e=coinbase", account.Coin.Name)
+type Conversion struct {
+	BaseModel
+	UserID         int    `json:"user_id"`
+	User           User   `gorm:"foreignKey:UserID" json:"user"`
+	SourceCoinID   int    `json:"source_coin_id"`
+	SourceCoin     Coin   `gorm:"foreignKey:SourceCoinID" json:"source_coin"`
+	DestCoinID     int    `json:"dest_coin_id"`
+	DestCoin       Coin   `gorm:"foreignKey:DestCoinID" json:"dest_coin"`
+	SourceAmount   uint64 `json:"source_amount"`
+	ExpectedAmount uint64 `json:"expected_amount"`
+	State          uint
+}
+
+func (conversion *Conversion) CheckBalance(db *gorm.DB) error {
+	var account Account
+
+	result := db.Where("user_id=? and coin_id=?", conversion.UserID, conversion.SourceCoinID).First(&account)
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("Account not found")
+	}
+
+	if account.Balance < conversion.SourceAmount {
+		return fmt.Errorf("insufficient balance")
+	}
+	return nil
+}
+
+func (conversion *Conversion) LoadAssociates(db *gorm.DB) {
+	db.Find(&conversion.SourceCoin, conversion.SourceCoinID)
+	db.Find(&conversion.DestCoin, conversion.DestCoinID)
+}
+
+func (conversion *Conversion) CalculateExpected() error {
+	price, err := conversion.SourceCoin.RetrievePrice(conversion.DestCoin.Name)
+	if err != nil {
+		return err
+	}
+
+	stdBalance := float64(conversion.SourceAmount) / float64(conversion.SourceCoin.UnitFactor)
+	conversion.ExpectedAmount = uint64(price * stdBalance * float64(conversion.DestCoin.UnitFactor))
+	return nil
+}
+
+func (account Account) CalculateUSCent() (uint64, error) {
+	price, err := account.Coin.RetrievePrice("USD")
+	if err != nil {
+		return 0, err
+	}
+
+	stdBalance := float64(account.Balance) / float64(account.Coin.UnitFactor)
+	return uint64(price*stdBalance) * 100, nil
+}
+
+func (coin Coin) RetrievePrice(destCoinName string) (float64, error) {
+	url := fmt.Sprintf("https://min-api.cryptocompare.com/data/generateAvg?fsym=%s&tsym=%s&e=coinbase", coin.Name, destCoinName)
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, err
@@ -61,9 +115,7 @@ func (account Account) CalculateUSCent() (uint, error) {
 		return 0, err
 	}
 
-	centPrice := uint(data.RAW.PRICE * 100)
-
-	return centPrice * account.Balance, nil
+	return data.RAW.PRICE, nil
 }
 
 func (u User) String() string {
@@ -74,4 +126,5 @@ func MigrateAll(db *gorm.DB) {
 	db.AutoMigrate(&User{})
 	db.AutoMigrate(&Coin{})
 	db.AutoMigrate(&Account{})
+	db.AutoMigrate(&Conversion{})
 }
