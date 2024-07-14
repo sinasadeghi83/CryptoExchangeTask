@@ -3,11 +3,17 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/sinasadeghi83/SwapTask/account"
 	"github.com/sinasadeghi83/SwapTask/user"
 )
+
+var API_ROUTES = map[string]http.HandlerFunc{
+	"GET /user/{id:[-]?[0-9]+}":    user.HandleGetUser,
+	"GET /account/{id:[-]?[0-9]+}": account.HandleGetAccount,
+}
 
 func addRoutes(router *mux.Router) {
 	router.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
@@ -15,8 +21,11 @@ func addRoutes(router *mux.Router) {
 		fmt.Printf("Request has been made through host %s for Hello world!\n", r.Host)
 	})
 
-	router.HandleFunc("/user/{id:[-]?[0-9]+}", user.HandleGetUser).Methods("GET")
-	router.HandleFunc("/account/{id:[-]?[0-9]+}", account.HandleGetAccount).Methods("GET")
+	for path, handlerFunc := range API_ROUTES {
+		splitedPath := strings.Split(path, " ")
+		method, route := splitedPath[0], splitedPath[1]
+		router.HandleFunc(route, handlerFunc).Methods(method)
+	}
 }
 
 func NewHandler() http.Handler {
