@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type BaseModel struct {
@@ -66,24 +67,34 @@ func (conversion *Conversion) CheckBalance(db *gorm.DB) error {
 }
 
 func (conversion *Conversion) Convert(db *gorm.DB) error {
-	var sourceAccount, destAccount Account
-	db.Where(Account{UserID: conversion.UserID, CoinID: conversion.SourceCoinID}).First(&sourceAccount)
-	db.Where(Account{UserID: conversion.UserID, CoinID: conversion.DestCoinID}).FirstOrCreate(&destAccount)
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var sourceAccount, destAccount Account
+		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where(Account{UserID: conversion.UserID, CoinID: conversion.SourceCoinID}).First(&sourceAccount)
 
-	sourceAccount.Balance -= conversion.SourceAmount
-	destAccount.Balance += conversion.ExpectedAmount
+		if err := result.Error; err != nil {
+			return err
+		}
 
-	if err := db.Save(&sourceAccount).Error; err != nil {
-		return err
-	}
+		result = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where(Account{UserID: conversion.UserID, CoinID: conversion.DestCoinID}).FirstOrCreate(&destAccount)
 
-	if err := db.Save(&destAccount).Error; err != nil {
-		return err
-	}
+		if err := result.Error; err != nil {
+			return err
+		}
 
-	db.Delete(conversion)
+		sourceAccount.Balance -= conversion.SourceAmount
+		destAccount.Balance += conversion.ExpectedAmount
 
-	return nil
+		if err := tx.Save(&sourceAccount).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Save(&destAccount).Error; err != nil {
+			return err
+		}
+
+		return tx.Delete(conversion).Error
+	})
+	return err
 }
 
 func (conversion *Conversion) Validate() error {
